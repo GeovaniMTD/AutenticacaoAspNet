@@ -17,7 +17,7 @@ namespace AutenticacaoAspNet.Models
         public string Login { get; set; }
 
         [Required]
-        [MaxLength(30)]
+        [MaxLength(100)]
         public string Senha { get; set; }
     }
 }
