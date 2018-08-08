@@ -5,12 +5,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web.Mvc;
+using System.Security.Claims;
+using System.Web;
+using Microsoft.Owin.Security;
 
 namespace AutenticacaoAspNet.Controllers
 {
     public class AutenticacaoController : Controller
     {
         private UsuariosContext db = new UsuariosContext();
+        private AuthenticationProperties identity;
+
         // GET: Autenticacao
         public ActionResult Cadastrar()
         {
@@ -42,6 +47,49 @@ namespace AutenticacaoAspNet.Controllers
             db.SaveChanges();
 
             return RedirectToAction("index", "Home");
+        }
+
+        public ActionResult Login(string ReturnUrl)
+        {
+            var viewmodel = new LoginViewModel
+            {
+                UrlRetorno = ReturnUrl
+            };
+            return View(viewmodel);
+        }
+        [HttpPost]
+        public ActionResult Login (LoginViewModel viewmodel)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(viewmodel);
+            }
+            var usuario = db.Usuarios.FirstOrDefault(u => u.Login == viewmodel.Login);
+
+            if (usuario == null)
+            {
+                ModelState.AddModelError("Login", "Login Incorreto");
+                return View(viewmodel);
+            }
+
+            if (usuario.Senha != Hash.GerarHash(viewmodel.Senha))
+            {
+                ModelState.AddModelError("Senha", "Senha incorreta");
+                return View(viewmodel);
+            }
+
+            var identity = new ClaimsIdentity(new[]
+            {
+                new Claim(ClaimTypes.Name, usuario.Nome),
+                new Claim("Login", usuario.Login)
+            }, "ApplicationCookie");
+
+            Request.GetOwinContext().Authentication.SignIn(identity);
+
+            if (!String.IsNullOrWhiteSpace(viewmodel.UrlRetorno) || Url.IsLocalUrl(viewmodel.UrlRetorno))
+                return Redirect(viewmodel.UrlRetorno);
+            else
+                return RedirectToAction("Index", "Painel");
         }
     }
 }
